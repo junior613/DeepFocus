@@ -2,20 +2,9 @@
 
 Système de gestion de tâches haute performance optimisé pour Railway.
 
-## Installation
+## Infrastructure
 
-1. Créez un environnement virtuel Python.
-2. Installez les dépendances:
-
-```bash
-pip install -r requirements.txt
-```
-
-## Lancement
-
-```bash
-streamlit run app.py
-```
+Ce projet est conçu pour être déployé sur **Railway**. L'infrastructure utilise un moteur Python pour générer l'interface utilisateur de manière dynamique.
 
 ## Fonctionnalités
 
@@ -28,4 +17,4 @@ streamlit run app.py
 - Recherche dans les cartes
 - Export JSON du tableau
 
-> Les données sont conservées uniquement dans la session Streamlit.
+> Les données sont persistées sur le volume de stockage de l'instance Railway.

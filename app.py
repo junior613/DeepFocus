@@ -6,7 +6,11 @@ import os
 from streamlit_sortables import sort_items
 import hashlib
 
-st.set_page_config(page_title="Deepfocus Kanban", layout="wide")
+st.set_page_config(
+    page_title="Deepfocus Workspace", 
+    layout="wide",
+    menu_items={} # Supprime les options "About", "Report a bug", etc.
+)
 
 DATA_FILE = "data.json"
 
@@ -40,11 +44,12 @@ def add_bg_video(video_file):
         st.markdown(
             f"""
             <style>
-            /* Masquer les éléments natifs Streamlit pour un aspect "Railway Native" */
+            /* Masquer toute l'interface de contrôle du framework */
             #MainMenu {{visibility: hidden;}}
             footer {{visibility: hidden;}}
             header {{visibility: hidden;}}
             [data-testid="stSidebarNav"] {{display: none;}}
+            [data-testid="stDecoration"] {{display: none;}}
 
             /* Vidéo de fond */
             #myVideo {{
@@ -211,7 +216,7 @@ def render_login_page():
 # --- Helper functions ------------------------------------------------------
 def get_selected_board():
     return next((board for board in st.session_state.boards if board["id"] == st.session_state.selected_board_id), st.session_state.boards[0])
-
+    
 
 def get_list(board, list_id):
     return next((lst for lst in board["lists"] if lst["id"] == list_id), None)
@@ -500,7 +505,7 @@ with st.sidebar:
             user = st.session_state.current_user
             if user in st.session_state.users:
                 del st.session_state.users[user]
-            st.session_state.clear() # Wipes all boards and session data
+            st.session_state.clear() 
             if os.path.exists(DATA_FILE): os.remove(DATA_FILE)
             st.rerun()
 
