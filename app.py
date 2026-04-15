@@ -1,145 +1,109 @@
 import streamlit as st
 from datetime import datetime, date
 import json
-import base64
-import os
 from streamlit_sortables import sort_items
 import hashlib
 
-st.set_page_config(
-    page_title="Deepfocus Workspace", 
-    layout="wide",
-    menu_items={} # Supprime les options "About", "Report a bug", etc.
-)
+st.set_page_config(page_title="Deepfocus Kanban", layout="wide")
 
-DATA_FILE = "data.json"
+def apply_custom_theme():
+    st.markdown(
+        """
+        <style>
+        /* Fond d'écran animé en Gradient */
+        @keyframes gradientBG {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+        .stApp {
+            background: linear-gradient(-45deg, #000000, #DD0000, #FFCE00);
+            background-size: 400% 400%;
+            animation: gradientBG 15s ease infinite;
+            background-attachment: fixed;
+        }
+        [data-testid="stAppViewContainer"] { background: transparent !important; }
+        [data-testid="stHeader"] { background: transparent !important; }
 
-def load_data():
-    """Charge les données depuis le fichier JSON local."""
-    if os.path.exists(DATA_FILE):
-        try:
-            with open(DATA_FILE, "r", encoding="utf-8") as f:
-                return json.load(f)
-        except Exception:
-            return None
-    return None
+        /* Thème Liquid Glass (Glassmorphism) */
+        .glass-card, [data-testid="stExpander"], .stChatMessage {
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.02)) !important;
+            backdrop-filter: blur(25px) saturate(180%) !important;
+            -webkit-backdrop-filter: blur(25px) saturate(180%) !important;
+            border: 1px solid rgba(255, 255, 255, 0.18) !important;
+            border-radius: 20px !important;
+            padding: 20px;
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37), inset 0 0 10px rgba(255, 255, 255, 0.1);
+        }
 
-def save_data():
-    """Sauvegarde les données actuelles dans un fichier JSON."""
-    data = {k: st.session_state[k] for k in ["boards", "users", "next_board_id", "next_list_id", "next_card_id"]}
-    with open(DATA_FILE, "w", encoding="utf-8") as f:
-        json.dump(data, f, indent=2, ensure_ascii=False)
+        /* Titres Néon Gradient */
+        h1, h2, h3, .neon-text {
+            background: linear-gradient(90deg, #000000, #DD0000, #FFCE00);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            font-weight: 800 !important;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            filter: drop-shadow(0 0 5px rgba(255, 255, 255, 0.3));
+        }
 
-@st.cache_data
-def get_video_base64(video_file):
-    """Encode la vidéo une seule fois pour optimiser les performances."""
-    if os.path.exists(video_file):
-        with open(video_file, "rb") as f:
-            return base64.b64encode(f.read()).decode()
-    return None
+        /* Thème Liquid Glass appliqué à TOUS les types d'inputs (contenant les placeholders) */
+        div[data-baseweb="input"], div[data-baseweb="textarea"], div[data-baseweb="select"], 
+        div[data-baseweb="base-input"], .stMultiSelect, .stDateInput, .stNumberInput,
+        div[role="combobox"], .stTextInput, .stTextArea {
+            background: rgba(255, 255, 255, 0.08) !important;
+            backdrop-filter: blur(20px) !important;
+            border: 1px solid rgba(255, 255, 255, 0.25) !important;
+            border-radius: 12px !important;
+            box-shadow: inset 2px 2px 5px rgba(255, 255, 255, 0.1), 
+                        inset -2px -2px 5px rgba(0, 0, 0, 0.05),
+                        0 4px 15px rgba(0, 0, 0, 0.2) !important;
+        }
+        input, textarea { color: #ffffff !important; background: transparent !important; }
 
-def add_bg_video(video_file):
-    bin_str = get_video_base64(video_file)
-    if bin_str:
-        st.markdown(
-            f"""
-            <style>
-            /* Masquer toute l'interface de contrôle du framework */
-            #MainMenu {{visibility: hidden;}}
-            footer {{visibility: hidden;}}
-            header {{visibility: hidden;}}
-            [data-testid="stSidebarNav"] {{display: none;}}
-            [data-testid="stDecoration"] {{display: none;}}
+        /* Style des Placeholders en noir pour la lisibilité */
+        input::placeholder, textarea::placeholder, ::placeholder {
+            color: black !important;
+            opacity: 1 !important;
+            -webkit-text-fill-color: black !important;
+        }
 
-            /* Vidéo de fond */
-            #myVideo {{
-                position: fixed; right: 0; bottom: 0;
-                min-width: 100%; min-height: 100%;
-                z-index: -1; object-fit: cover;
-                filter: brightness(0.5) saturate(1.2);
-            }}
-            .stApp {{ background: transparent !important; }}
-            [data-testid="stAppViewContainer"] {{
-                background: transparent !important;
-            }}
-            [data-testid="stHeader"] {{
-                background: transparent !important;
-            }}
+        /* Boutons Néon */
+        .stButton>button {
+            background: linear-gradient(45deg, #4facfe 0%, #00f2fe 100%) !important;
+            color: white !important;
+            border: none !important;
+            font-weight: bold !important;
+            transition: 0.3s all;
+            text-transform: uppercase;
+        }
+        .stButton>button:hover {
+            transform: scale(1.02);
+            box-shadow: 0 0 15px rgba(0, 242, 254, 0.6);
+        }
 
-            /* Conteneur Liquid Glass spécifique pour Login */
-            .glass-card {{
-                background: rgba(255, 255, 255, 0.05);
-                backdrop-filter: blur(25px);
-                border: 1px solid rgba(255, 255, 255, 0.1);
-                border-radius: 20px;
-                padding: 30px;
-                box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.5);
-                margin-top: 50px;
-            }}
+        /* Sidebar */
+        [data-testid="stSidebar"] {
+            background: rgba(0, 0, 0, 0.6) !important;
+            backdrop-filter: blur(30px) saturate(150%);
+            border-right: 1px solid rgba(255, 255, 255, 0.05);
+        }
 
-            /* Titres en Néon Gradient */
-            h1, h2, h3, .neon-text {{
-                background: linear-gradient(45deg, #00f2fe 0%, #4facfe 50%, #f093fb 100%);
-                -webkit-background-clip: text;
-                -webkit-text-fill-color: transparent;
-                font-weight: 800 !important;
-                text-transform: uppercase;
-                letter-spacing: 1px;
-            }}
+        /* Force la couleur blanche pour les labels des onglets (Se connecter / S'inscrire) */
+        .stTabs [data-baseweb="tab"] p {
+            color: white !important;
+        }
+        </style>
+        """,
+        unsafe_allow_html=True
+    )
 
-            /* Effet Liquid Glass pour les inputs et containers */
-            div[data-baseweb="input"], div[data-baseweb="textarea"], div[data-baseweb="select"] {{
-                background: rgba(255, 255, 255, 0.05) !important;
-                backdrop-filter: blur(15px) !important;
-                border: 1px solid rgba(255, 255, 255, 0.1) !important;
-                border-radius: 10px !important;
-                color: white !important;
-            }}
-
-            /* Style des Placeholders */
-            ::placeholder {{
-                color: rgba(255, 255, 255, 0.4) !important;
-                font-style: italic;
-            }}
-            
-            /* Styling des onglets (Tabs) */
-            .stTabs [data-baseweb="tab-list"] {{
-                background-color: transparent !important;
-            }}
-
-            /* Sidebar Glassmorphism */
-            [data-testid="stSidebar"] {{
-                background: rgba(0, 0, 0, 0.3) !important;
-                backdrop-filter: blur(20px);
-                border-right: 1px solid rgba(255, 255, 255, 0.1);
-            }}
-
-            /* Boutons */
-            .stButton>button {{
-                background: linear-gradient(45deg, rgba(79, 172, 254, 0.5), rgba(0, 242, 254, 0.5)) !important;
-                border: 1px solid rgba(255, 255, 255, 0.2) !important;
-                color: white !important;
-                backdrop-filter: blur(5px);
-                transition: 0.3s;
-            }}
-            .stButton>button:hover {{
-                transform: translateY(-2px);
-                box-shadow: 0 5px 15px rgba(0, 242, 254, 0.4);
-            }}
-            </style>
-            <video autoplay muted loop playsinline id="myVideo">
-                <source src="data:video/mp4;base64,{bin_str}" type="video/mp4">
-            </video>
-            """,
-            unsafe_allow_html=True
-        )
-
-add_bg_video("4.mp4")
+apply_custom_theme()
 
 # --- State initialization --------------------------------------------------
 def init_state():
     defaults = {
-        "boards": [{"id": 1, "name": "Deepfocus Workspace", "lists": [
+        "boards": [{"id": 1, "name": "Tableau Deepfocus", "lists": [
             {"id": 1, "name": "À faire", "cards": []},
             {"id": 2, "name": "En cours", "cards": []},
             {"id": 3, "name": "Terminé", "cards": []}
@@ -159,15 +123,6 @@ def init_state():
     for key, val in defaults.items():
         if key not in st.session_state:
             st.session_state[key] = val
-            
-    # Persistance : Charger les données si le fichier existe
-    saved_data = load_data()
-    if saved_data:
-        for key, val in saved_data.items():
-            st.session_state[key] = val
-
-def trigger_save():
-    save_data()
 
 init_state()
 
@@ -191,7 +146,6 @@ def render_login_page():
                 if user_in in st.session_state.users and st.session_state.users[user_in] == hash_password(pass_in):
                     st.session_state.logged_in = True
                     st.session_state.current_user = user_in
-                    trigger_save()
                     st.rerun()
                 else:
                     st.error("Identifiants incorrects")
@@ -209,7 +163,6 @@ def render_login_page():
                     st.error("Cet utilisateur existe déjà")
                 else:
                     st.session_state.users[new_user] = hash_password(new_pass)
-                    trigger_save()
                     st.success("Compte créé ! Connectez-vous.")
         st.markdown('</div>', unsafe_allow_html=True)
 
@@ -234,13 +187,11 @@ def add_board(name):
     st.session_state.boards.append({"id": st.session_state.next_board_id, "name": name, "lists": []})
     st.session_state.selected_board_id = st.session_state.next_board_id
     st.session_state.next_board_id += 1
-    trigger_save()
 
 
 def add_list(board, name):
     board["lists"].append({"id": st.session_state.next_list_id, "name": name, "cards": []})
     st.session_state.next_list_id += 1
-    trigger_save()
 
 
 def add_card(board, list_id, title, description, label, due_date, members, checklist, attachments):
@@ -263,7 +214,6 @@ def add_card(board, list_id, title, description, label, due_date, members, check
     }
     lst["cards"].append(card)
     st.session_state.next_card_id += 1
-    trigger_save()
 
 
 def update_card(board, card_id, title, description, label, due_date, members, checklist, attachments, list_id):
@@ -287,27 +237,23 @@ def update_card(board, card_id, title, description, label, due_date, members, ch
         if new_list:
             lst["cards"].remove(card)
             new_list["cards"].append(card)
-    trigger_save()
 
 
 def delete_card(board, card_id):
     for lst in board["lists"]:
         lst["cards"] = [card for card in lst["cards"] if card["id"] != card_id]
-    trigger_save()
 
 
 def archive_card(board, card_id):
     _, card = get_card(board, card_id)
     if card:
         card["archived"] = True
-        trigger_save()
 
 
 def restore_card(board, card_id):
     _, card = get_card(board, card_id)
     if card:
         card["archived"] = False
-        trigger_save()
 
 
 def copy_card(board, card_id):
@@ -321,7 +267,6 @@ def copy_card(board, card_id):
         copy["archived"] = False
         st.session_state.next_card_id += 1
         lst["cards"].append(copy)
-        trigger_save()
 
 
 def move_card(board, card_id, direction):
@@ -336,7 +281,6 @@ def move_card(board, card_id, direction):
     if new_idx != idx:
         board_lists[idx]["cards"] = [c for c in board_lists[idx]["cards"] if c["id"] != card_id]
         board_lists[new_idx]["cards"].append(card)
-        trigger_save()
 
 
 def add_comment(board, card_id, comment_text):
@@ -349,7 +293,6 @@ def add_comment(board, card_id, comment_text):
             }
         )
         card["updated_at"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        trigger_save()
 
 
 def toggle_checklist_item(board, card_id, item_index):
@@ -357,7 +300,6 @@ def toggle_checklist_item(board, card_id, item_index):
     if card and 0 <= item_index < len(card["checklist"]):
         card["checklist"][item_index]["done"] = not card["checklist"][item_index]["done"]
         card["updated_at"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        trigger_save()
 
 
 def format_label(label):
@@ -393,9 +335,9 @@ def render_card_preview(card):
     checklist_line = f"<div style='font-size:0.8rem;color:#ddd;'>{checklist}</div>" if checklist else ""
     archived = "<div style='font-size:0.75rem;color:#a00;'>Archivée</div>" if card["archived"] else ""
     st.markdown(
-        f"<div style='background: linear-gradient(135deg, rgba(255,255,255,0.1), rgba(255,255,255,0.05));"
-        f"backdrop-filter: blur(15px); border: 1px solid rgba(255,255,255,0.15); border-radius: 1rem; "
-        f"padding: 1rem; margin-bottom: 0.9rem; color: white; box-shadow: 0 8px 32px 0 rgba(0,0,0,0.37);'>"
+        f"<div style='background: linear-gradient(135deg, rgba(255,255,255,0.12), rgba(255,255,255,0.03));"
+        f"backdrop-filter: blur(20px); border: 1px solid rgba(255,255,255,0.2); border-radius: 1.2rem; "
+        f"padding: 1.2rem; margin-bottom: 0.9rem; color: white; box-shadow: 0 8px 32px 0 rgba(0,0,0,0.45), inset 0 0 8px rgba(255,255,255,0.1);'>"
         f"<div style='display:flex;justify-content:space-between;align-items:flex-start;'>"
         f"<strong style='font-size:1.1rem; letter-spacing:0.5px;'>{card['title']}</strong>{badge}"
         f"</div>"
@@ -458,7 +400,6 @@ def update_lists_from_dnd(board, sorted_containers):
         lst['cards'] = new_cards
         new_lists.append(lst)
     board['lists'] = new_lists
-    trigger_save()
 
 
 # --- Main Application Flow --------------------------------------------------
@@ -469,7 +410,7 @@ if not st.session_state.logged_in:
 
 # --- UI ---------------------------------------------------------------------
 board = get_selected_board()
-st.title("Deepfocus — Système de Gestion")
+st.title("Deepfocus — Tableau Kanban")
 st.markdown("Gestion multi-listes, cartes, commentaires, checklists, étiquettes, pièces jointes et archives.")
 
 with st.expander("Glisser-déposer les cartes", expanded=True):
@@ -506,7 +447,6 @@ with st.sidebar:
             if user in st.session_state.users:
                 del st.session_state.users[user]
             st.session_state.clear() 
-            if os.path.exists(DATA_FILE): os.remove(DATA_FILE)
             st.rerun()
 
     st.markdown("---")
@@ -535,7 +475,6 @@ with st.sidebar:
         rename_board_name = st.text_input("Renommer ce tableau", value=board["name"])
         if st.button("Renommer le tableau") and rename_board_name.strip():
             board["name"] = rename_board_name.strip()
-            trigger_save()
             st.rerun()
 
     st.markdown("---")
@@ -592,7 +531,6 @@ with st.sidebar:
         for lst in board["lists"]:
             lst["cards"] = []
         st.session_state.selected_card_id = None
-        trigger_save()
         st.rerun()
 
 
@@ -613,7 +551,6 @@ else:
                 if c_edit1.button("✅", key=f"save_lst_{lst['id']}", use_container_width=True):
                     if new_lst_name.strip():
                         lst["name"] = new_lst_name.strip()
-                        trigger_save()
                     st.session_state.editing_list_id = None
                     st.rerun()
                 if c_edit2.button("❌", key=f"cancel_lst_{lst['id']}", use_container_width=True):
@@ -626,7 +563,6 @@ else:
                     st.rerun()
                 if c_btn2.button("Supprimer", key=f"del_btn_{lst['id']}", use_container_width=True):
                     board["lists"] = [l for l in board["lists"] if l["id"] != lst["id"]]
-                    trigger_save()
                     st.rerun()
 
             visible_cards = [card for card in lst["cards"] if (st.session_state.show_archived or not card["archived"]) and filter_card(card)]
