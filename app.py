@@ -8,6 +8,24 @@ import hashlib
 
 st.set_page_config(page_title="Deepfocus Kanban", layout="wide")
 
+DATA_FILE = "data.json"
+
+def load_data():
+    """Charge les données depuis le fichier JSON local."""
+    if os.path.exists(DATA_FILE):
+        try:
+            with open(DATA_FILE, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except Exception:
+            return None
+    return None
+
+def save_data():
+    """Sauvegarde les données actuelles dans un fichier JSON."""
+    data = {k: st.session_state[k] for k in ["boards", "users", "next_board_id", "next_list_id", "next_card_id"]}
+    with open(DATA_FILE, "w", encoding="utf-8") as f:
+        json.dump(data, f, indent=2, ensure_ascii=False)
+
 @st.cache_data
 def get_video_base64(video_file):
     """Encode la vidéo une seule fois pour optimiser les performances."""
@@ -130,6 +148,15 @@ def init_state():
     for key, val in defaults.items():
         if key not in st.session_state:
             st.session_state[key] = val
+            
+    # Persistance : Charger les données si le fichier existe
+    saved_data = load_data()
+    if saved_data:
+        for key, val in saved_data.items():
+            st.session_state[key] = val
+
+def trigger_save():
+    save_data()
 
 init_state()
 
@@ -153,6 +180,7 @@ def render_login_page():
                 if user_in in st.session_state.users and st.session_state.users[user_in] == hash_password(pass_in):
                     st.session_state.logged_in = True
                     st.session_state.current_user = user_in
+                    trigger_save()
                     st.rerun()
                 else:
                     st.error("Identifiants incorrects")
@@ -170,6 +198,7 @@ def render_login_page():
                     st.error("Cet utilisateur existe déjà")
                 else:
                     st.session_state.users[new_user] = hash_password(new_pass)
+                    trigger_save()
                     st.success("Compte créé ! Connectez-vous.")
         st.markdown('</div>', unsafe_allow_html=True)
 
@@ -194,11 +223,13 @@ def add_board(name):
     st.session_state.boards.append({"id": st.session_state.next_board_id, "name": name, "lists": []})
     st.session_state.selected_board_id = st.session_state.next_board_id
     st.session_state.next_board_id += 1
+    trigger_save()
 
 
 def add_list(board, name):
     board["lists"].append({"id": st.session_state.next_list_id, "name": name, "cards": []})
     st.session_state.next_list_id += 1
+    trigger_save()
 
 
 def add_card(board, list_id, title, description, label, due_date, members, checklist, attachments):
@@ -221,6 +252,7 @@ def add_card(board, list_id, title, description, label, due_date, members, check
     }
     lst["cards"].append(card)
     st.session_state.next_card_id += 1
+    trigger_save()
 
 
 def update_card(board, card_id, title, description, label, due_date, members, checklist, attachments, list_id):
@@ -244,23 +276,27 @@ def update_card(board, card_id, title, description, label, due_date, members, ch
         if new_list:
             lst["cards"].remove(card)
             new_list["cards"].append(card)
+    trigger_save()
 
 
 def delete_card(board, card_id):
     for lst in board["lists"]:
         lst["cards"] = [card for card in lst["cards"] if card["id"] != card_id]
+    trigger_save()
 
 
 def archive_card(board, card_id):
     _, card = get_card(board, card_id)
     if card:
         card["archived"] = True
+        trigger_save()
 
 
 def restore_card(board, card_id):
     _, card = get_card(board, card_id)
     if card:
         card["archived"] = False
+        trigger_save()
 
 
 def copy_card(board, card_id):
@@ -274,6 +310,7 @@ def copy_card(board, card_id):
         copy["archived"] = False
         st.session_state.next_card_id += 1
         lst["cards"].append(copy)
+        trigger_save()
 
 
 def move_card(board, card_id, direction):
@@ -288,6 +325,7 @@ def move_card(board, card_id, direction):
     if new_idx != idx:
         board_lists[idx]["cards"] = [c for c in board_lists[idx]["cards"] if c["id"] != card_id]
         board_lists[new_idx]["cards"].append(card)
+        trigger_save()
 
 
 def add_comment(board, card_id, comment_text):
@@ -300,6 +338,7 @@ def add_comment(board, card_id, comment_text):
             }
         )
         card["updated_at"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        trigger_save()
 
 
 def toggle_checklist_item(board, card_id, item_index):
@@ -307,6 +346,7 @@ def toggle_checklist_item(board, card_id, item_index):
     if card and 0 <= item_index < len(card["checklist"]):
         card["checklist"][item_index]["done"] = not card["checklist"][item_index]["done"]
         card["updated_at"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        trigger_save()
 
 
 def format_label(label):
@@ -407,6 +447,7 @@ def update_lists_from_dnd(board, sorted_containers):
         lst['cards'] = new_cards
         new_lists.append(lst)
     board['lists'] = new_lists
+    trigger_save()
 
 
 # --- Main Application Flow --------------------------------------------------
@@ -454,6 +495,7 @@ with st.sidebar:
             if user in st.session_state.users:
                 del st.session_state.users[user]
             st.session_state.clear() # Wipes all boards and session data
+            if os.path.exists(DATA_FILE): os.remove(DATA_FILE)
             st.rerun()
 
     st.markdown("---")
@@ -482,6 +524,7 @@ with st.sidebar:
         rename_board_name = st.text_input("Renommer ce tableau", value=board["name"])
         if st.button("Renommer le tableau") and rename_board_name.strip():
             board["name"] = rename_board_name.strip()
+            trigger_save()
             st.rerun()
 
     st.markdown("---")
@@ -538,6 +581,7 @@ with st.sidebar:
         for lst in board["lists"]:
             lst["cards"] = []
         st.session_state.selected_card_id = None
+        trigger_save()
         st.rerun()
 
 
@@ -558,6 +602,7 @@ else:
                 if c_edit1.button("✅", key=f"save_lst_{lst['id']}", use_container_width=True):
                     if new_lst_name.strip():
                         lst["name"] = new_lst_name.strip()
+                        trigger_save()
                     st.session_state.editing_list_id = None
                     st.rerun()
                 if c_edit2.button("❌", key=f"cancel_lst_{lst['id']}", use_container_width=True):
@@ -570,6 +615,7 @@ else:
                     st.rerun()
                 if c_btn2.button("Supprimer", key=f"del_btn_{lst['id']}", use_container_width=True):
                     board["lists"] = [l for l in board["lists"] if l["id"] != lst["id"]]
+                    trigger_save()
                     st.rerun()
 
             visible_cards = [card for card in lst["cards"] if (st.session_state.show_archived or not card["archived"]) and filter_card(card)]
