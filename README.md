@@ -1,6 +1,6 @@
 # Deepfocus Kanban
 
-Application de gestion de tâches style Trello avec Streamlit.
+Système de gestion de tâches haute performance optimisé pour Railway.
 
 ## Installation
 

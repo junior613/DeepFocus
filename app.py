@@ -40,6 +40,12 @@ def add_bg_video(video_file):
         st.markdown(
             f"""
             <style>
+            /* Masquer les éléments natifs Streamlit pour un aspect "Railway Native" */
+            #MainMenu {{visibility: hidden;}}
+            footer {{visibility: hidden;}}
+            header {{visibility: hidden;}}
+            [data-testid="stSidebarNav"] {{display: none;}}
+
             /* Vidéo de fond */
             #myVideo {{
                 position: fixed; right: 0; bottom: 0;
@@ -128,7 +134,7 @@ add_bg_video("4.mp4")
 # --- State initialization --------------------------------------------------
 def init_state():
     defaults = {
-        "boards": [{"id": 1, "name": "Tableau Deepfocus", "lists": [
+        "boards": [{"id": 1, "name": "Deepfocus Workspace", "lists": [
             {"id": 1, "name": "À faire", "cards": []},
             {"id": 2, "name": "En cours", "cards": []},
             {"id": 3, "name": "Terminé", "cards": []}
@@ -458,7 +464,7 @@ if not st.session_state.logged_in:
 
 # --- UI ---------------------------------------------------------------------
 board = get_selected_board()
-st.title("Deepfocus — Tableau Kanban style Deep Tech")
+st.title("Deepfocus — Système de Gestion")
 st.markdown("Gestion multi-listes, cartes, commentaires, checklists, étiquettes, pièces jointes et archives.")
 
 with st.expander("Glisser-déposer les cartes", expanded=True):
